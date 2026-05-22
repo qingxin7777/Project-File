@@ -42,6 +42,16 @@ def main():
     # 托盘点击 → 切换弹窗显示/隐藏
     tray.activated.connect(lambda reason: popup.toggle_visibility())
 
+    # ── 5. 开机自启 ──
+    from core import startup_manager
+    # 初始化菜单勾选状态
+    tray.update_startup_state(startup_manager.is_enabled())
+    # 开机自启菜单点击 → 切换状态
+    def on_toggle_startup():
+        enabled = startup_manager.toggle()
+        tray.update_startup_state(enabled)
+    tray.startup_toggle_requested.connect(on_toggle_startup)
+
     # ── 启动 ──
     print("剪贴板管理器已启动 — 点击系统托盘图标打开面板")
     sys.exit(app.exec())
