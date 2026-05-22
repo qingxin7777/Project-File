@@ -65,9 +65,9 @@ class TrayIcon(QSystemTrayIcon):
         self._menu.addSeparator()
 
         # 退出
-        exit_action = QAction("退出")
-        exit_action.triggered.connect(self._on_exit)
-        self._menu.addAction(exit_action)
+        self._exit_action = QAction("退出")
+        self._exit_action.triggered.connect(self._on_exit)
+        self._menu.addAction(self._exit_action)
 
         self.setContextMenu(self._menu)
 
