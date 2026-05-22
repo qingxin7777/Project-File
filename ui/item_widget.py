@@ -16,19 +16,17 @@ from ui.styles import (
 
 
 def _format_time(time_str: str) -> str:
-    """将数据库时间字符串转为友好的显示格式"""
+    """将数据库时间字符串转为中国时间显示格式"""
     try:
         dt = datetime.fromisoformat(time_str)
         now = datetime.now()
-        diff = now - dt
-        if diff.days == 0:
-            return dt.strftime("%H:%M")
-        elif diff.days == 1:
-            return "昨天"
-        elif diff.days < 7:
-            return f"{diff.days}天前"
+        # 判断是否为今天
+        if dt.date() == now.date():
+            return f"今天 {dt.strftime('%H:%M')}"
+        elif (now.date() - dt.date()).days == 1:
+            return f"昨天 {dt.strftime('%H:%M')}"
         else:
-            return dt.strftime("%Y-%m-%d")
+            return dt.strftime("%m-%d %H:%M")
     except (ValueError, TypeError):
         return time_str or ""
 

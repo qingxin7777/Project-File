@@ -9,12 +9,15 @@ from db.database import get_connection
 def add_item(content_type: str, text_content: str = None,
              image_path: str = None, thumbnail_path: str = None) -> dict:
     """添加一条剪贴板记录，返回包含 id 的字典"""
+    from datetime import datetime
+    now = datetime.now().isoformat(sep=" ", timespec="seconds")
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(
-        """INSERT INTO clipboard_items (content_type, text_content, image_path, thumbnail_path)
-           VALUES (?, ?, ?, ?)""",
-        (content_type, text_content, image_path, thumbnail_path)
+        """INSERT INTO clipboard_items
+           (content_type, text_content, image_path, thumbnail_path, created_at, last_used_at)
+           VALUES (?, ?, ?, ?, ?, ?)""",
+        (content_type, text_content, image_path, thumbnail_path, now, now)
     )
     conn.commit()
     item_id = cursor.lastrowid

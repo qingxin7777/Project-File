@@ -35,8 +35,8 @@ def init_db():
             image_path      TEXT,
             thumbnail_path  TEXT,
             is_pinned       INTEGER NOT NULL DEFAULT 0,
-            created_at      TEXT NOT NULL DEFAULT (datetime('now')),
-            last_used_at    TEXT NOT NULL DEFAULT (datetime('now'))
+            created_at      TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+            last_used_at    TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
         )
     """)
 
@@ -55,7 +55,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS tags (
             id         INTEGER PRIMARY KEY AUTOINCREMENT,
             name       TEXT NOT NULL UNIQUE,
-            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+            created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
         )
     """)
 
