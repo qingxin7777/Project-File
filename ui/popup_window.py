@@ -2,9 +2,9 @@
 主弹窗：搜索栏 + 记录列表 + 标签栏
 无边框、不在任务栏显示、失去焦点时自动隐藏
 """
-from PySide6.QtCore import Qt, Signal, QTimer, QEvent
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QFrame, QVBoxLayout, QApplication, QSystemTrayIcon, QInputDialog, QMessageBox
+    QFrame, QVBoxLayout, QApplication, QSystemTrayIcon
 )
 from PySide6.QtGui import QImage
 
@@ -25,11 +25,10 @@ class PopupWindow(QFrame):
         self._tray_icon = tray_icon
         self._monitor = monitor  # 用于通知监控器跳过程序内复制
 
-        # 窗口标志：无边框 + 工具提示级别（不在任务栏显示 + 不抢焦点）
+        # 窗口标志：Popup 类型（不在任务栏显示，点击外部自动关闭）
         self.setWindowFlags(
-            Qt.ToolTip | Qt.FramelessWindowHint | Qt.NoDropShadowWindowHint
+            Qt.Popup | Qt.FramelessWindowHint
         )
-        self.setAttribute(Qt.WA_ShowWithoutActivating)
         self.setFixedSize(POPUP_WIDTH, POPUP_HEIGHT)
 
         # 应用样式
@@ -61,9 +60,6 @@ class PopupWindow(QFrame):
         self._tag_bar.delete_tag_requested.connect(self._delete_tag)
         main_layout.addWidget(self._tag_bar)
 
-        # 安装全局事件过滤器（失去焦点时隐藏）
-        QApplication.instance().installEventFilter(self)
-
     # ── 显示/隐藏/定位 ──
 
     def toggle_visibility(self):
@@ -74,47 +70,41 @@ class PopupWindow(QFrame):
             self._position_near_tray()
             self._refresh_all()
             self.show()
+            # 确保窗口可见（Popup 类型有时需要手动 raise）
+            self.raise_()
 
     def _position_near_tray(self):
         """
         将弹窗定位在任务栏托盘上方
         智能判断任务栏位置（顶部/底部/左侧/右侧）
+        如果无法获取托盘位置，回退到屏幕右下角
         """
         tray_geo = self._tray_icon.geometry()
         screen = QApplication.primaryScreen().availableGeometry()
 
-        # 判断任务栏位置
-        if tray_geo.top() < screen.height() // 3:
-            y = tray_geo.bottom() + 10
-        elif tray_geo.left() > screen.width() // 2:
-            x = tray_geo.left() - self.width() - 10
-            y = tray_geo.bottom() - self.height()
-            x = max(screen.left(), min(x, screen.right() - self.width()))
-            y = max(screen.top(), min(y, screen.bottom() - self.height()))
+        # 回退：如果托盘坐标为 (0,0) 或无效，定位到屏幕右下角
+        if tray_geo.isNull() or (tray_geo.x() == 0 and tray_geo.y() == 0):
+            x = screen.right() - self.width() - 10
+            y = screen.bottom() - self.height() - 10
             self.move(x, y)
             return
+
+        # 正常定位逻辑
+        if tray_geo.top() > screen.height() * 0.66:
+            # 任务栏在底部
+            y = tray_geo.top() - self.height() - 10
+        elif tray_geo.top() < screen.height() * 0.33:
+            # 任务栏在顶部
+            y = tray_geo.bottom() + 10
         else:
             y = tray_geo.top() - self.height() - 10
 
         x = tray_geo.center().x() - self.width() // 2
+
+        # 限制在屏幕范围内
         x = max(screen.left(), min(x, screen.right() - self.width()))
         y = max(screen.top(), min(y, screen.bottom() - self.height()))
         self.move(x, y)
-
-    def eventFilter(self, obj, event):
-        """
-        全局事件过滤器：弹窗失去焦点时自动隐藏
-        延迟 100ms 确保内部点击事件能正常触发
-        """
-        if event.type() == QEvent.WindowDeactivate and self.isVisible():
-            if obj is self:
-                QTimer.singleShot(100, self._hide_if_lost_focus)
-        return super().eventFilter(obj, event)
-
-    def _hide_if_lost_focus(self):
-        """如果没有子控件持有焦点，则隐藏"""
-        if not self.isActiveWindow:
-            self.hide()
 
     # ── 数据刷新 ──
 

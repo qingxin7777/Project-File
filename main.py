@@ -43,7 +43,7 @@ def main():
     tray.activated.connect(lambda reason: popup.toggle_visibility())
 
     # ── 启动 ──
-    print("剪贴板管理器已启动 — 查看系统托盘图标")
+    print("剪贴板管理器已启动 — 点击系统托盘图标打开面板")
     sys.exit(app.exec())
 
 

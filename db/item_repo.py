@@ -2,6 +2,7 @@
 剪贴板记录 CRUD 操作
 操作 clipboard_items 表
 """
+import sqlite3
 from db.database import get_connection
 
 
