@@ -4,7 +4,7 @@
 """
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QFrame, QVBoxLayout, QApplication, QSystemTrayIcon
+    QFrame, QVBoxLayout, QHBoxLayout, QApplication, QSystemTrayIcon, QPushButton
 )
 from PySide6.QtGui import QImage
 
@@ -44,12 +44,16 @@ class PopupWindow(QFrame):
         self._search_bar.search_changed.connect(self._on_search)
         main_layout.addWidget(self._search_bar)
 
+        # ── 选择工具栏（默认隐藏） ──
+        self._build_selection_toolbar(main_layout)
+
         # 记录列表
         self._item_list = ItemList()
         self._item_list.copy_requested.connect(self._copy_item)
         self._item_list.pin_requested.connect(self._toggle_pin)
         self._item_list.delete_requested.connect(self._delete_item)
         self._item_list.tag_add_requested.connect(self._add_tag_to_item)
+        self._item_list.selection_changed.connect(self._on_selection_changed)
         main_layout.addWidget(self._item_list, stretch=1)
 
         # 标签栏
@@ -129,6 +133,7 @@ class PopupWindow(QFrame):
 
     def _on_search(self, text: str):
         """搜索框文本变化 → 过滤列表"""
+        self._exit_selection_mode()
         self._item_list.filter_items(text)
         # 也更新标签栏的高亮状态：如果有搜索文字，取消标签选中
         if text:
@@ -190,6 +195,106 @@ class PopupWindow(QFrame):
                 item["image_path"], item.get("thumbnail_path", "")
             )
         item_repo.delete_item(item_id)
+        self._refresh_item_list()
+
+    # ── 选择工具栏 ──
+
+    def _build_selection_toolbar(self, parent_layout):
+        """创建选择模式工具栏（默认隐藏）"""
+        self._select_toolbar = QFrame()
+        self._select_toolbar.hide()
+        toolbar_layout = QHBoxLayout(self._select_toolbar)
+        toolbar_layout.setContentsMargins(0, 2, 0, 2)
+        toolbar_layout.setSpacing(6)
+
+        self._select_btn = QPushButton("☑ 选择")
+        self._select_btn.setObjectName("selectToolbarBtn")
+        self._select_btn.clicked.connect(self._toggle_selection_mode)
+        toolbar_layout.addWidget(self._select_btn)
+
+        self._select_all_btn = QPushButton("全选")
+        self._select_all_btn.setObjectName("selectToolbarBtn")
+        self._select_all_btn.clicked.connect(self._on_select_all)
+        self._select_all_btn.hide()
+        toolbar_layout.addWidget(self._select_all_btn)
+
+        self._delete_selected_btn = QPushButton("删除选中")
+        self._delete_selected_btn.setObjectName("selectToolbarBtn")
+        self._delete_selected_btn.setEnabled(False)
+        self._delete_selected_btn.clicked.connect(self._batch_delete)
+        self._delete_selected_btn.hide()
+        toolbar_layout.addWidget(self._delete_selected_btn)
+
+        toolbar_layout.addStretch()
+        parent_layout.addWidget(self._select_toolbar)
+
+    def _toggle_selection_mode(self):
+        """切换选择模式"""
+        if self._select_toolbar.isVisible() and self._select_all_btn.isVisible():
+            self._exit_selection_mode()
+        else:
+            self._enter_selection_mode()
+
+    def _enter_selection_mode(self):
+        """进入选择模式"""
+        self._item_list.set_selection_mode(True)
+        self._select_btn.setText("✕ 取消")
+        self._select_all_btn.show()
+        self._select_all_btn.setText("全选")
+        self._delete_selected_btn.show()
+        self._delete_selected_btn.setText("删除选中")
+        self._delete_selected_btn.setEnabled(False)
+        self._select_toolbar.show()
+
+    def _exit_selection_mode(self):
+        """退出选择模式"""
+        self._item_list.set_selection_mode(False)
+        self._select_btn.setText("☑ 选择")
+        self._select_all_btn.hide()
+        self._delete_selected_btn.hide()
+        self._select_toolbar.hide()
+
+    def _on_selection_changed(self, count: int):
+        """选中数量变化回调"""
+        self._delete_selected_btn.setEnabled(count > 0)
+        if count > 0:
+            self._delete_selected_btn.setText(f"删除选中 ({count})")
+        else:
+            self._delete_selected_btn.setText("删除选中")
+        # 全选按钮文字
+        visible_count = sum(
+            1 for w in self._item_list._all_widgets if w.isVisible()
+        )
+        if count >= visible_count and visible_count > 0:
+            self._select_all_btn.setText("取消全选")
+        else:
+            self._select_all_btn.setText("全选")
+
+    def _on_select_all(self):
+        """全选 / 取消全选切换"""
+        visible_count = sum(
+            1 for w in self._item_list._all_widgets if w.isVisible()
+        )
+        selected_count = self._item_list.get_selected_count()
+        if selected_count >= visible_count:
+            self._item_list.deselect_all()
+        else:
+            self._item_list.select_all()
+
+    def _batch_delete(self):
+        """批量删除选中的记录"""
+        ids = self._item_list.get_selected_ids()
+        if not ids:
+            return
+        # 删除图片文件
+        for item_id in ids:
+            item = item_repo.get_item(item_id)
+            if item and item.get("image_path"):
+                delete_image_files(
+                    item["image_path"], item.get("thumbnail_path", "")
+                )
+        item_repo.delete_items(ids)
+        self._exit_selection_mode()
         self._refresh_item_list()
 
     def _create_tag(self, name: str):

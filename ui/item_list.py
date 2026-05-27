@@ -17,6 +17,7 @@ class ItemList(QScrollArea):
     pin_requested = Signal(int)
     delete_requested = Signal(int)
     tag_add_requested = Signal(int, int)
+    selection_changed = Signal(int)  # 选中数量变化
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -53,6 +54,7 @@ class ItemList(QScrollArea):
 
         # 追踪所有 ItemWidget
         self._all_widgets: list[ItemWidget] = []
+        self._selected_ids: set[int] = set()
 
     def rebuild(self, items: list[dict]):
         """
@@ -86,6 +88,7 @@ class ItemList(QScrollArea):
         widget.pin_clicked.connect(self.pin_requested.emit)
         widget.delete_clicked.connect(self.delete_requested.emit)
         widget.tag_added.connect(self.tag_add_requested.emit)
+        widget.checked_changed.connect(self._on_item_checked)
         self._all_widgets.append(widget)
         return widget
 
@@ -137,8 +140,45 @@ class ItemList(QScrollArea):
         self._pinned_group.setVisible(has_visible_pinned)
         self._recent_group.setVisible(has_visible_recent)
 
+    # ── 选择模式 ──
+
+    def set_selection_mode(self, enabled: bool):
+        """进入/退出选择模式"""
+        self._selected_ids.clear()
+        for widget in self._all_widgets:
+            widget.set_selection_mode(enabled)
+        self.selection_changed.emit(0)
+
+    def get_selected_ids(self) -> list[int]:
+        """获取所有已选中的 item ID"""
+        return list(self._selected_ids)
+
+    def get_selected_count(self) -> int:
+        return len(self._selected_ids)
+
+    def select_all(self):
+        """勾选所有可见的记录"""
+        for widget in self._all_widgets:
+            if widget.isVisible() and not widget._checkbox.isChecked():
+                widget._checkbox.setChecked(True)
+
+    def deselect_all(self):
+        """取消所有勾选"""
+        for widget in self._all_widgets:
+            if widget._checkbox.isChecked():
+                widget._checkbox.setChecked(False)
+
+    def _on_item_checked(self, item_id: int, checked: bool):
+        """复选框状态变化回调"""
+        if checked:
+            self._selected_ids.add(item_id)
+        else:
+            self._selected_ids.discard(item_id)
+        self.selection_changed.emit(len(self._selected_ids))
+
     def _clear_all(self):
         """清空所有 ItemWidget"""
+        self._selected_ids.clear()
         for widget in self._all_widgets:
             widget.deleteLater()
         self._all_widgets.clear()

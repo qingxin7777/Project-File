@@ -7,7 +7,7 @@ from datetime import datetime
 from PySide6.QtCore import Signal, Qt, QSize
 from PySide6.QtGui import QPixmap, QIcon, QAction
 from PySide6.QtWidgets import (
-    QFrame, QHBoxLayout, QVBoxLayout, QLabel, QPushButton, QMenu, QSizePolicy
+    QFrame, QHBoxLayout, QVBoxLayout, QLabel, QPushButton, QMenu, QSizePolicy, QCheckBox
 )
 from db import item_repo, tag_repo
 from ui.styles import (
@@ -39,6 +39,7 @@ class ItemWidget(QFrame):
     pin_clicked = Signal(int)        # 置顶按钮点击 → item_id
     delete_clicked = Signal(int)     # 删除操作 → item_id
     tag_added = Signal(int, int)     # 给记录添加标签 → (item_id, tag_id)
+    checked_changed = Signal(int, bool)  # 选择框状态变化 → (item_id, checked)
 
     def __init__(self, item_data: dict, parent=None):
         super().__init__(parent)
@@ -47,6 +48,8 @@ class ItemWidget(QFrame):
         self._item_id = item_data["id"]
         self._is_pinned = bool(item_data.get("is_pinned", 0))
 
+        self._selection_mode = False
+
         self.setFixedHeight(ITEM_HEIGHT)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
@@ -54,6 +57,15 @@ class ItemWidget(QFrame):
         root_layout = QHBoxLayout(self)
         root_layout.setContentsMargins(6, 4, 6, 4)
         root_layout.setSpacing(8)
+
+        # ── 选择框（默认隐藏） ──
+        self._checkbox = QCheckBox()
+        self._checkbox.setFixedSize(20, 20)
+        self._checkbox.hide()
+        self._checkbox.toggled.connect(
+            lambda checked: self.checked_changed.emit(self._item_id, checked)
+        )
+        root_layout.addWidget(self._checkbox)
 
         # ── 左侧：缩略图/图标区域 ──
         self._build_thumbnail(root_layout)
@@ -173,14 +185,35 @@ class ItemWidget(QFrame):
     # ── 悬停事件 ──
 
     def enterEvent(self, event):
-        """鼠标进入 → 显示操作按钮"""
-        self._action_widget.show()
+        """鼠标进入 → 显示操作按钮（选择模式下不显示）"""
+        if not self._selection_mode:
+            self._action_widget.show()
         super().enterEvent(event)
 
     def leaveEvent(self, event):
         """鼠标离开 → 隐藏操作按钮"""
         self._action_widget.hide()
         super().leaveEvent(event)
+
+    # ── 点击事件（选择模式下切换复选框） ──
+
+    def mousePressEvent(self, event):
+        if self._selection_mode and event.button() == Qt.LeftButton:
+            self._checkbox.toggle()
+        super().mousePressEvent(event)
+
+    # ── 选择模式 ──
+
+    def set_selection_mode(self, enabled: bool):
+        """切换选择模式：显示/隐藏复选框，禁用悬停按钮"""
+        self._selection_mode = enabled
+        self._checkbox.setVisible(enabled)
+        self._checkbox.setChecked(False)
+        if enabled:
+            self._action_widget.hide()
+
+    def is_selected(self) -> bool:
+        return self._checkbox.isChecked()
 
     # ── 右键菜单 ──
 

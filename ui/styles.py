@@ -164,7 +164,41 @@ QPushButton#actionButton:hover {{
     background-color: {BG_BUTTON};
 }}
 
-/* ── 菜单 ── */
+/* ── 复选框（选择模式） ── */
+    QCheckBox {{
+        spacing: 0px;
+    }}
+    QCheckBox::indicator {{
+        width: 16px;
+        height: 16px;
+        border-radius: 3px;
+        border: 2px solid {BORDER};
+        background-color: transparent;
+    }}
+    QCheckBox::indicator:checked {{
+        background-color: {ACCENT};
+        border-color: {ACCENT};
+    }}
+    QCheckBox::indicator:hover {{
+        border-color: {ACCENT};
+    }}
+
+    /* ── 选择工具栏按钮 ── */
+    QPushButton#selectToolbarBtn {{
+        background-color: {BG_INPUT};
+        border-radius: 14px;
+        padding: 4px 16px;
+        font-size: 12px;
+    }}
+    QPushButton#selectToolbarBtn:hover {{
+        background-color: {BG_BUTTON_HOVER};
+    }}
+    QPushButton#selectToolbarBtn:disabled {{
+        color: {TEXT_SECONDARY};
+        background-color: {BG_INPUT};
+    }}
+
+    /* ── 菜单 ── */
 QMenu {{
     background-color: {BG_DARK};
     border: 1px solid {BORDER};

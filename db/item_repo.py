@@ -112,6 +112,21 @@ def delete_item(item_id: int):
     conn.close()
 
 
+def delete_items(ids: list[int]):
+    """批量删除指定 ID 的记录"""
+    if not ids:
+        return
+    conn = get_connection()
+    cursor = conn.cursor()
+    placeholders = ",".join("?" for _ in ids)
+    cursor.execute(
+        f"DELETE FROM clipboard_items WHERE id IN ({placeholders})",
+        ids
+    )
+    conn.commit()
+    conn.close()
+
+
 def delete_oldest_nonpinned(count: int):
     """删除最旧的 N 条非置顶记录（用于超限清理）"""
     if count <= 0:
